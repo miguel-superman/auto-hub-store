@@ -597,6 +597,160 @@ exports.partsApi = onRequest(
         });
       }
 
+
+    // POST /v1/custom-part-requests
+    // Creates a request for a part that is not listed in the supplier catalog.
+    if (
+      req.method === "POST" &&
+      path === "/v1/custom-part-requests"
+    ) {
+      const {
+        supplierId,
+        vehicle,
+        chassisNumber,
+        engineNumber,
+        partNumber,
+        description,
+        quantity,
+        notes,
+      } = req.body || {};
+
+      // Validate required fields.
+      if (
+        typeof supplierId !== "string" ||
+        !supplierId.trim()
+      ) {
+        return sendError(res, 400, "Supplier is required");
+      }
+
+      if (
+        (typeof partNumber !== "string" || !partNumber.trim()) &&
+        (typeof description !== "string" || !description.trim())
+      ) {
+        return sendError(
+          res,
+          400,
+          "Enter a part number or describe the requested part"
+        );
+      }
+
+      if (
+        !Number.isSafeInteger(quantity) ||
+        quantity < 1 ||
+        quantity > 10000
+      ) {
+        return sendError(res, 400, "Invalid requested quantity");
+      }
+
+      if (
+        vehicle !== null &&
+        vehicle !== undefined &&
+        (
+          typeof vehicle !== "object" ||
+          Array.isArray(vehicle)
+        )
+      ) {
+        return sendError(res, 400, "Invalid vehicle details");
+      }
+
+      // Confirm that the selected supplier is approved.
+      const supplier = await getApprovedSupplier(supplierId.trim());
+
+      const orderRef = autoDb.collection("PartsOrders").doc();
+
+      const orderNumber =
+        `MA-${orderRef.id.slice(0, 8).toUpperCase()}`;
+
+      const safeNotes =
+        typeof notes === "string" ? notes.trim().slice(0, 1000) : "";
+
+      // Custom requests do not have a catalog price yet.
+      const customItem = {
+        partId: null,
+        partName:
+          typeof description === "string"
+            ? description.trim().slice(0, 300)
+            : "",
+        partNumber:
+          typeof partNumber === "string"
+            ? partNumber.trim().slice(0, 100)
+            : "",
+        quantity,
+        unitPrice: null,
+        lineTotal: null,
+        isCustomRequest: true,
+      };
+
+      const order = {
+        orderId: orderRef.id,
+        orderNumber,
+        source: "MechAssistApp",
+        requestType: "Custom Part Request",
+        isCustomRequest: true,
+
+        mechanicId: mechanic.uid,
+        mechanicName: mechanic.name,
+
+        supplierId: supplierId.trim(),
+        supplierName:
+          supplier.data.businessName ||
+          supplier.data.name ||
+          "",
+
+        items: [customItem],
+        vehicle: vehicle || null,
+        chassisNumber:
+          typeof chassisNumber === "string"
+            ? chassisNumber.trim().slice(0, 100)
+            : null,
+        engineNumber:
+          typeof engineNumber === "string"
+            ? engineNumber.trim().slice(0, 100)
+            : null,
+
+        notes: safeNotes,
+        total: null,
+        currency: "JMD",
+        status: "Pending",
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      };
+
+      // Keep the same collection structure used by regular orders.
+      const requestRef = supplier.ref
+        .collection("parts_requests")
+        .doc(orderRef.id);
+
+      const batch = autoDb.batch();
+
+      batch.set(orderRef, order);
+
+      batch.set(requestRef, {
+        ...order,
+        requesterId: mechanic.uid,
+        requesterName: mechanic.name,
+        quantity,
+      });
+
+      await batch.commit();
+
+      console.log("Custom parts request created", {
+        orderId: orderRef.id,
+        supplierId: supplierId.trim(),
+        mechanicId: mechanic.uid,
+      });
+
+      return res.status(201).json({
+        success: true,
+        orderId: orderRef.id,
+        orderNumber,
+        status: "Pending",
+        requestType: "Custom Part Request",
+        message: "Custom parts request submitted successfully",
+      });
+    }
+
+
       return sendError(res, 404, "Endpoint not found");
     } catch (error) {
       console.error("Parts API error:", error);
