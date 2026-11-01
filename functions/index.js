@@ -316,6 +316,7 @@ exports.partsApi = onRequest(
             supplierType: data.supplierType || "",
             description: data.description || "",
             logoUrl: data.logoUrl || data.imageUrl || "",
+            address: data.address || "",
             city: data.city || "",
             parish: data.parish || "",
             country: data.country || "Jamaica",
