@@ -312,7 +312,7 @@ exports.partsApi = onRequest(
           return {
             id: doc.id,
             businessName:
-              data.businessName || data.name || "Auto Parts Supplier",
+            data.businessName || data.name || "Auto Parts Supplier",
             supplierType: data.supplierType || "",
             description: data.description || "",
             logoUrl: data.logoUrl || data.imageUrl || "",

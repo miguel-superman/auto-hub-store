@@ -882,6 +882,7 @@ function Dashboard({ user, onLogout, onOpenProfile,  onOpenParts, }) {
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center">
               <Boxes className="h-6 w-6 text-white" />
+              <img src="/logo.png" className="h-12 w-12" />
             </div>
             <div>
               <h1 className="text-lg font-bold text-slate-900 leading-tight">Autostore Admin</h1>

@@ -279,7 +279,8 @@ function LoginScreen({ onShowSignup }) {
         <div className="mb-8 flex items-center justify-center">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 shadow-lg shadow-orange-500/30">
-              <Boxes className="h-7 w-7 text-white" />
+              {/* <Boxes className="h-7 w-7 text-white" /> */}
+              <img src="/logo.png" className="h-12 w-12" />
             </div>
 
             <div>
