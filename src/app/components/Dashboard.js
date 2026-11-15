@@ -1316,31 +1316,43 @@ function Dashboard({ user, onLogout, onOpenProfile,  onOpenParts,onSubscribe, })
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
-          {/* Left: Logo + Title */}
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center shadow-sm shrink-0 overflow-hidden">
-              <img src="/logo.png" alt="Autostore" className="h-full w-full object-contain p-1" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2.5">
-                <h1 className="text-lg font-bold text-slate-900 leading-tight truncate">
-                  Autostore Admin
-                </h1>
-                <Badge
-                  variant="outline"
-                  className="hidden sm:inline-flex border-emerald-400/60 bg-emerald-50 text-emerald-700 text-[11px] font-medium px-2 py-0.5"
-                >
-                  LIVE
-                </Badge>
-              </div>
-              <p className="text-xs text-slate-500 truncate">Real-time parts request dashboard</p>
-            </div>
-          </div>
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3">
 
-          {/* Right: User + Actions */}
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            <div className="hidden lg:flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-slate-100/80 border border-slate-200/60">
+          {/* Top Row: Logo, Title and User Actions */}
+          <div className="flex items-center justify-between gap-2">
+
+            {/* Logo + Title */}
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center shadow-sm shrink-0 overflow-hidden">
+                <img
+                  src="/logo.png"
+                  alt="Autostore"
+                  className="h-full w-full object-contain p-1"
+                />
+              </div>
+
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h1 className="text-base sm:text-lg font-bold text-slate-900 leading-tight truncate">
+                    Autostore Admin
+                  </h1>
+
+                  <Badge
+                    variant="outline"
+                    className="hidden sm:inline-flex border-emerald-400/60 bg-emerald-50 text-emerald-700 text-[11px] font-medium px-2 py-0.5"
+                  >
+                    LIVE
+                  </Badge>
+                </div>
+
+                <p className="text-[11px] sm:text-xs text-slate-500 truncate">
+                  Real-time parts request dashboard
+                </p>
+              </div>
+            </div>
+
+            {/* Desktop User Info */}
+            <div className="hidden lg:flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-slate-100/80 border border-slate-200/60 shrink-0">
               <div className="h-7 w-7 rounded-full bg-gradient-to-br from-orange-500 to-amber-600 text-white flex items-center justify-center text-xs font-semibold shadow-sm">
                 {(user?.email || "A").charAt(0).toUpperCase()}
               </div>
@@ -1349,13 +1361,58 @@ function Dashboard({ user, onLogout, onOpenProfile,  onOpenParts,onSubscribe, })
               </span>
             </div>
 
+            {/* Desktop Actions */}
+            <div className="hidden sm:flex items-center gap-2 shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onOpenParts}
+              >
+                <Package className="mr-2 h-4 w-4" />
+                My Parts
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onOpenProfile}
+              >
+                <UserRound className="mr-2 h-4 w-4" />
+                Profile
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onLogout}
+                className="text-slate-600 hover:text-slate-900"
+              >
+                <LogOut className="h-4 w-4 mr-1.5" />
+                Logout
+              </Button>
+            </div>
+
+            {/* Mobile Logout */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onLogout}
+              className="sm:hidden h-9 w-9 shrink-0 text-slate-600"
+              aria-label="Logout"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {/* Mobile Actions */}
+          <div className="grid grid-cols-2 gap-2 mt-3 sm:hidden">
             <Button
               variant="outline"
               size="sm"
               onClick={onOpenParts}
-              className="hidden sm:inline-flex"
+              className="w-full text-xs h-9"
             >
-              <Package className="mr-2 h-4 w-4" />
+              <Package className="mr-1.5 h-4 w-4" />
               My Parts
             </Button>
 
@@ -1363,24 +1420,17 @@ function Dashboard({ user, onLogout, onOpenProfile,  onOpenParts,onSubscribe, })
               variant="outline"
               size="sm"
               onClick={onOpenProfile}
-              className="hidden sm:inline-flex"
+              className="w-full text-xs h-9"
             >
-              <UserRound className="mr-2 h-4 w-4" />
+              <UserRound className="mr-1.5 h-4 w-4" />
               Profile
             </Button>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onLogout}
-              className="text-slate-600 hover:text-slate-900"
-            >
-              <LogOut className="h-4 w-4 sm:mr-1.5" />
-              <span className="hidden sm:inline">Logout</span>
-            </Button>
           </div>
+
         </div>
       </header>
+      
+
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
         {/* Stats */}
@@ -1414,28 +1464,39 @@ function Dashboard({ user, onLogout, onOpenProfile,  onOpenParts,onSubscribe, })
         {/* Filters + Date Range */}
         <Card className="border-slate-200/80 shadow-sm">
           <CardContent className="p-4 space-y-4">
+
+            
             {/* Status Tabs */}
-            <div className="overflow-x-auto -mx-1 px-1">
-              <Tabs value={filter} onValueChange={setFilter}>
-                <TabsList className="w-full sm:w-auto justify-start h-auto flex-wrap gap-1 bg-slate-100/80 p-1">
-                  <TabsTrigger value="all" className="text-xs sm:text-sm">
-                    All ({requests.length})
-                  </TabsTrigger>
-                  <TabsTrigger value="pending" className="text-xs sm:text-sm">
-                    Pending ({stats.pending})
-                  </TabsTrigger>
-                  <TabsTrigger value="in_progress" className="text-xs sm:text-sm">
-                    In Progress ({stats.in_progress})
-                  </TabsTrigger>
-                  <TabsTrigger value="fulfilled" className="text-xs sm:text-sm">
-                    Fulfilled ({stats.fulfilled})
-                  </TabsTrigger>
-                  <TabsTrigger value="rejected" className="text-xs sm:text-sm">
-                    Rejected ({stats.rejected})
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
+            <div className="w-full min-w-0 -mx-1 px-1">
+              <div className="overflow-x-auto overflow-y-hidden scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent">
+                <Tabs value={filter} onValueChange={setFilter}>
+                  <TabsList className="inline-flex w-max min-w-full sm:min-w-0 sm:w-auto justify-start h-auto flex-nowrap gap-1 bg-slate-100/80 p-1">
+
+                    <TabsTrigger value="all" className="text-xs sm:text-sm whitespace-nowrap shrink-0">
+                      All ({requests.length})
+                    </TabsTrigger>
+
+                    <TabsTrigger value="pending" className="text-xs sm:text-sm whitespace-nowrap shrink-0">
+                      Pending ({stats.pending})
+                    </TabsTrigger>
+
+                    <TabsTrigger value="in_progress" className="text-xs sm:text-sm whitespace-nowrap shrink-0">
+                      In Progress ({stats.in_progress})
+                    </TabsTrigger>
+
+                    <TabsTrigger value="fulfilled" className="text-xs sm:text-sm whitespace-nowrap shrink-0">
+                      Fulfilled ({stats.fulfilled})
+                    </TabsTrigger>
+
+                    <TabsTrigger value="rejected" className="text-xs sm:text-sm whitespace-nowrap shrink-0">
+                      Rejected ({stats.rejected})
+                    </TabsTrigger>
+
+                  </TabsList>
+                </Tabs>
+              </div>
             </div>
+
 
             {/* Date Filters */}
             <div className="flex flex-col sm:flex-row sm:items-end gap-3 pt-1 border-t border-slate-100">
