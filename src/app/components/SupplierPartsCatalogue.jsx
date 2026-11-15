@@ -307,7 +307,7 @@ export default function SupplierPartsCatalogue({
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-600">
-              <Boxes className="h-6 w-6 text-white" />
+              <img src="/logo.png" className="h-12 w-12" />
             </div>
             <div>
               <h1 className="font-bold text-slate-900">My Parts Catalogue</h1>

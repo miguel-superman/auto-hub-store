@@ -3,7 +3,6 @@
 
 import { useEffect, useState, useRef, useMemo } from "react";
 import { toast } from "sonner";
-
 import {
   collection,
   doc,
@@ -40,6 +39,7 @@ import {
   FileText,
   Boxes,
   Clock,
+  Lock,
   CheckCircle2,
   CalendarDays,
   XCircle,
@@ -54,6 +54,8 @@ import {
    UserRound,
    Save,
    X,
+   MessageCircle,
+   Mail,
 } from "lucide-react";
 
 import StatCard from "./StatCard";
@@ -630,7 +632,7 @@ function normalizeRequestStatus(value) {
 
 
 // ---------- Dashboard ----------
-function Dashboard({ user, onLogout, onOpenProfile,  onOpenParts, }) {
+function Dashboard({ user, onLogout, onOpenProfile,  onOpenParts,onSubscribe, }) {
   const [requests, setRequests] = useState([]);
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
@@ -639,6 +641,64 @@ function Dashboard({ user, onLogout, onOpenProfile,  onOpenParts, }) {
   const [editingRequest, setEditingRequest] = useState(null);
   const [soundOn, setSoundOn] = useState(true);
   const [pwOpen, setPwOpen] = useState(false);
+
+  const [hasSubscription, setHasSubscription] = useState(false);
+  const [subscriptionLoading, setSubscriptionLoading] = useState(true);
+
+  
+
+  // const getTodayDate = () => {
+  //   const today = new Date();
+  //   const year = today.getFullYear();
+  //   const month = String(today.getMonth() + 1).padStart(2, "0");
+  //   const day = String(today.getDate()).padStart(2, "0");
+
+  //   return `${year}-${month}-${day}`;
+  // };
+
+  useEffect(() => {
+    if (!user?.uid) {
+      setHasSubscription(false);
+      setSubscriptionLoading(false);
+      return;
+    }
+
+    const userRef = doc(db, "Suppliers", user.uid);
+
+    const unsubscribe = onSnapshot(
+      userRef,
+      (snapshot) => {
+        if (snapshot.exists()) {
+          const userData = snapshot.data();
+
+          setHasSubscription(userData.sub === true);
+        } else {
+          setHasSubscription(false);
+        }
+
+        setSubscriptionLoading(false);
+      },
+      (error) => {
+        console.error("Subscription listener error:", error);
+        setHasSubscription(false);
+        setSubscriptionLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user?.uid]);
+  const getTodayDate = () => {
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Jamaica",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+  };
+
+  const [selectedDate, setSelectedDate] = useState(getTodayDate());
+  const [startDate, setStartDate] = useState(getTodayDate());
+  const [endDate, setEndDate] = useState(getTodayDate());
 
   const [supplierProfile, setSupplierProfile] = useState({});
   const [generatingDocument, setGeneratingDocument] = useState("");
@@ -733,11 +793,110 @@ function Dashboard({ user, onLogout, onOpenProfile,  onOpenParts, }) {
 }, [requests]);
 
 
+  // const filtered = useMemo(() => {
+  //   return requests.filter((r) => {
+  //     if (filter !== 'all' && r.status !== filter) return false;
+  //     if (search) {
+  //       const q = search.toLowerCase();
+  //       return (
+  //         r.partName?.toLowerCase().includes(q) ||
+  //         r.partId?.toLowerCase().includes(q) ||
+  //         r.vehicleId?.toLowerCase().includes(q) ||
+  //         r.requestedBy?.toLowerCase().includes(q)
+  //       );
+  //     }
+  //     return true;
+  //   });
+  // }, [requests, filter, search]);
+
+  
+
+
+  // const filtered = useMemo(() => {
+  //   return requests.filter((r) => {
+
+  //     // Status filter
+  //     if (filter !== "all" && r.status !== filter) return false;
+
+  //     // Date filter
+  //     if (selectedDate) {
+  //       const rawDate = r.createdAt || r.timestamp;
+
+  //       if (!rawDate) return false;
+
+  //       const requestDate =
+  //         typeof rawDate?.toDate === "function"
+  //           ? rawDate.toDate()
+  //           : new Date(rawDate);
+
+  //       if (Number.isNaN(requestDate.getTime())) return false;
+
+  //       const requestDateString = [
+  //         requestDate.getFullYear(),
+  //         String(requestDate.getMonth() + 1).padStart(2, "0"),
+  //         String(requestDate.getDate()).padStart(2, "0"),
+  //       ].join("-");
+
+  //       if (requestDateString !== selectedDate) return false;
+  //     }
+
+  //     // Search filter
+  //     if (search) {
+  //       const q = search.toLowerCase();
+
+  //       return (
+  //         r.partName?.toLowerCase().includes(q) ||
+  //         r.partId?.toLowerCase().includes(q) ||
+  //         r.vehicleId?.toLowerCase().includes(q) ||
+  //         r.requestedBy?.toLowerCase().includes(q)
+  //       );
+  //     }
+
+  //     return true;
+  //   });
+  // }, [requests, filter, search, selectedDate]);
   const filtered = useMemo(() => {
     return requests.filter((r) => {
-      if (filter !== 'all' && r.status !== filter) return false;
+      // Status filter
+      if (filter !== "all" && r.status !== filter) {
+        return false;
+      }
+
+      // Date range filter
+      const rawDate = r.createdAt || r.timestamp;
+
+      if (startDate || endDate) {
+        if (!rawDate) return false;
+
+        const requestDate =
+          typeof rawDate?.toDate === "function"
+            ? rawDate.toDate()
+            : new Date(rawDate);
+
+        if (Number.isNaN(requestDate.getTime())) {
+          return false;
+        }
+
+        const requestDateString = new Intl.DateTimeFormat("en-CA", {
+          timeZone: "America/Jamaica",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        }).format(requestDate);
+
+        if (startDate && requestDateString < startDate) {
+          return false;
+        }
+
+        if (endDate && requestDateString > endDate) {
+          return false;
+        }
+      }
+
+      // Search filter
       if (search) {
         const q = search.toLowerCase();
+
         return (
           r.partName?.toLowerCase().includes(q) ||
           r.partId?.toLowerCase().includes(q) ||
@@ -745,12 +904,10 @@ function Dashboard({ user, onLogout, onOpenProfile,  onOpenParts, }) {
           r.requestedBy?.toLowerCase().includes(q)
         );
       }
+
       return true;
     });
-  }, [requests, filter, search]);
-
-
-
+  }, [requests, filter, search, startDate, endDate]);
 
     const updateRequest = async (id, updates) => {
       if (!user?.uid) {
@@ -874,102 +1031,378 @@ function Dashboard({ user, onLogout, onOpenProfile,  onOpenParts, }) {
 
 
 
+  // return (
+  //   <div className="min-h-screen bg-slate-50">
+  //     {/* Header */}
+  //     <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
+  //       <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
+  //         <div className="flex items-center gap-3">
+  //           <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center">
+  //             {/* <Boxes className="h-6 w-6 text-white" /> */}
+  //             <img src="/logo.png" className="h-12 w-12" />
+  //           </div>
+  //           <div>
+  //             <h1 className="text-lg font-bold text-slate-900 leading-tight">Autostore Admin</h1>
+  //             <p className="text-xs text-slate-500">Real-time parts request dashboard</p>
+  //           </div>
+                        
+  //           <Badge
+  //             variant="outline"
+  //             className="ml-3 border-emerald-400 bg-emerald-50 text-emerald-700"
+  //           >
+  //             LIVE MODE
+  //           </Badge>
+
+  //         </div>
+
+  //         <div className="flex items-center gap-2">
+  //           {/* <Button
+  //             variant="ghost"
+  //             size="sm"
+  //             onClick={() => setSoundOn((s) => !s)}
+  //             title={soundOn ? 'Mute notifications' : 'Unmute notifications'}
+  //           >
+  //             {soundOn ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4 text-slate-400" />}
+  //           </Button> */}
+  //           {/* {!isFirebaseConfigured && (
+  //             <Button variant="outline" size="sm" onClick={addDemoRequest}>
+  //               <Plus className="h-4 w-4 mr-1" /> Simulate request
+  //             </Button>
+  //           )} */}
+  //           {/* <Button variant="outline" size="sm" onClick={() => setPwOpen(true)}>
+  //             <KeyRound className="h-4 w-4 mr-1" /> Change password
+  //           </Button> */}
+  //           <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md bg-slate-100">
+  //             <div className="h-7 w-7 rounded-full bg-gradient-to-br from-orange-500 to-amber-600 text-white flex items-center justify-center text-xs font-semibold">
+  //               {(user?.email || 'A').charAt(0).toUpperCase()}
+  //             </div>
+  //             <span className="text-sm text-slate-700">{user?.email}</span>
+  //           </div>
+  //           <Button
+  //             variant="outline"
+  //             size="sm"
+  //             onClick={onOpenParts}
+  //           >
+  //             <Package className="mr-2 h-4 w-4" />
+  //             My Parts
+  //           </Button>
+  //           <Button
+  //             variant="outline"
+  //             size="sm"
+  //             onClick={onOpenProfile}
+  //           >
+  //             <UserRound className="mr-2 h-4 w-4" />
+  //             Profile
+  //           </Button>
+  //           <Button variant="ghost" size="sm" onClick={onLogout}>
+  //             <LogOut className="h-4 w-4 mr-1" /> Logout
+  //           </Button>
+  //         </div>
+  //       </div>
+  //     </header>
+
+  //     <main className="max-w-7xl mx-auto px-6 py-6">
+
+
+  //       {/* Stats */}
+  //       <div className="grid grid-cols-1 gap-4 mb-6 sm:grid-cols-2 xl:grid-cols-4">
+  //         <StatCard
+  //           label="Pending"
+  //           value={stats.pending}
+  //           icon={Clock}
+  //           color="amber"
+  //         />
+
+  //         <StatCard
+  //           label="In Progress"
+  //           value={stats.in_progress}
+  //           icon={Truck}
+  //           color="blue"
+  //         />
+
+  //         <StatCard
+  //           label="Fulfilled"
+  //           value={stats.fulfilled}
+  //           icon={CheckCircle2}
+  //           color="emerald"
+  //         />
+
+  //         <StatCard
+  //           label="Rejected"
+  //           value={stats.rejected}
+  //           icon={XCircle}
+  //           color="rose"
+  //         />
+  //       </div>
+
+  //       {/* <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6"> */}
+  //         {/* <StatCard label="Pending" value={stats.pending} icon={Clock} color="amber" />
+  //         <StatCard label="In Progress" value={stats.in_progress} icon={Truck} color="blue" />
+  //         <StatCard label="Fulfilled" value={stats.fulfilled} icon={CheckCircle2} color="emerald" />
+  //         <StatCard label="Rejected" value={stats.rejected} icon={XCircle} color="rose" /> */}
+
+          
+  //       {/* </div> */}
+
+  //       {/* Filters */}
+  //       <Card className="mb-4">
+  //         <CardContent className="p-4 flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
+  //           <Tabs value={filter} onValueChange={setFilter}>
+  //             <TabsList>
+  //               <TabsTrigger value="all">All ({requests.length})</TabsTrigger>
+  //               <TabsTrigger value="pending">Pending ({stats.pending})</TabsTrigger>
+  //               <TabsTrigger value="in_progress">In Progress ({stats.in_progress})</TabsTrigger>
+  //               <TabsTrigger value="fulfilled">Fulfilled ({stats.fulfilled})</TabsTrigger>
+  //               <TabsTrigger value="rejected">Rejected ({stats.rejected})</TabsTrigger>
+  //             </TabsList>
+  //           </Tabs>
+  //           {/* <div className="relative w-full md:w-72">
+  //             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+  //             <Input
+  //               placeholder="Search part, vehicle, requester..."
+  //               value={search}
+  //               onChange={(e) => setSearch(e.target.value)}
+  //               className="pl-8"
+  //             />
+  //           </div> */}
+  //           <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+
+  //             {/* Start Date */}
+  //   `          <div className="flex flex-col gap-1.5 w-full sm:w-auto">
+  //               <label className="text-sm font-medium text-slate-600">
+  //                 Start Date
+  //               </label>
+
+  //               <div className="relative">
+  //                 <CalendarDays className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+
+  //                 <Input
+  //                   type="date"
+  //                   value={startDate}
+  //                   onChange={(e) => setStartDate(e.target.value)}
+  //                   className="pl-10 w-full sm:w-[180px]"
+  //                   aria-label="Start date"
+  //                 />
+  //               </div>
+  //             </div>
+
+  //             {/* End Date */}
+  //             <div className="flex flex-col gap-1.5 w-full sm:w-auto">
+  //               <label className="text-sm font-medium text-slate-600">
+  //                 End Date
+  //               </label>
+
+  //               <div className="relative">
+  //                 <CalendarDays className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+
+  //                 <Input
+  //                   type="date"
+  //                   value={endDate}
+  //                   min={startDate || undefined}
+  //                   onChange={(e) => setEndDate(e.target.value)}
+  //                   className="pl-10 w-full sm:w-[180px]"
+  //                   aria-label="End date"
+  //                 />
+  //               </div>
+  //             </div>
+
+  //             {/* Clear Dates */}
+              
+
+  //             <div className="flex flex-col gap-1.5 w-full sm:w-auto">
+  //               <label className="text-sm font-medium text-slate-600 p-2.5">
+                  
+  //               </label>
+
+  //               <div className="relative">
+  //                {(startDate || endDate) && (
+  //               <Button
+  //                 variant="outline"
+  //                 onClick={() => {
+  //                   setStartDate("");
+  //                   setEndDate("");
+  //                 }}
+  //                 className="whitespace-nowrap"
+  //               >
+  //                 Clear Dates
+  //               </Button>
+  //             )}
+  //               </div>
+  //             </div>
+
+             
+
+  //           </div>
+  //         </CardContent>
+  //       </Card>
+
+  //       {/* Table */}
+  //       <Card>
+  //         <CardContent className="p-0">
+  //           <div className="overflow-x-auto">
+  //              {/* Search */}
+  //             <div className="relative w-full md:w-72 ml-4 mb-4">
+  //               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+
+  //               <Input
+  //                 placeholder="Search part, vehicle, requester..."
+  //                 value={search}
+  //                 onChange={(e) => setSearch(e.target.value)}
+  //                 className="pl-8 border-1 border-black"
+  //               />
+  //             </div>
+  //             <Table>
+  //               <TableHeader>
+  //                 <TableRow className="bg-slate-50">
+  //                   <TableHead className="font-bold">Parts</TableHead>
+  //                   {/* <TableHead>Vehicle</TableHead> */}
+  //                   <TableHead className="font-bold">Qty</TableHead>
+  //                   <TableHead className="font-bold">Requested By</TableHead>
+  //                   {/* <TableHead>Bin</TableHead> */}
+  //                   {/* <TableHead>Picker</TableHead> */}
+  //                   <TableHead className="font-bold text-left">Status</TableHead>
+  //                   <TableHead className="font-bold">Date</TableHead>
+  //                   <TableHead className="font-bold text-center">Action</TableHead>
+  //                 </TableRow>
+  //               </TableHeader>
+  //               <TableBody>
+  //                 {filtered.length === 0 && (
+  //                   <TableRow>
+  //                     <TableCell colSpan={9} className="text-center py-12 text-slate-400">
+  //                       <Package className="h-10 w-10 mx-auto mb-2 opacity-40" />
+  //                       No requests {filter !== 'all' ? `in ${filter}` : 'yet'}
+  //                     </TableCell>
+  //                   </TableRow>
+  //                 )}                  
+  //                 {filtered.map((r) => (
+  //                   <RequestRow
+  //                     key={r.id}
+  //                     r={r}
+  //                     onView={(request) => setViewRequest(request)}
+  //                     onUpdate={(request) => setEditingRequest(request)}
+  //                   />
+  //                 ))}
+  //               </TableBody>
+  //             </Table>
+  //           </div>
+  //         </CardContent>
+  //       </Card>
+  //     </main>
+      
+  //     {viewRequest && (
+  //       <RequestDetailsDialog
+  //         request={viewRequest}
+  //         onClose={() => setViewRequest(null)}
+  //         onUpdate={(request) => {
+  //           setViewRequest(null);
+  //           setEditingRequest(request);
+  //         }}
+  //         onGenerateDocument={handleGenerateDocument}
+  //         generatingDocument={generatingDocument}
+  //       />
+  //     )}
+
+  //     {editingRequest && (
+  //       <UpdateRequestDialog
+  //         request={editingRequest}
+  //         onClose={() => setEditingRequest(null)}
+  //         onSave={updateRequest}
+  //       />
+  //     )}
+
+  //   </div>
+  // );
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center">
-              <Boxes className="h-6 w-6 text-white" />
-              <img src="/logo.png" className="h-12 w-12" />
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
+          {/* Left: Logo + Title */}
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center shadow-sm shrink-0 overflow-hidden">
+              <img src="/logo.png" alt="Autostore" className="h-full w-full object-contain p-1" />
             </div>
-            <div>
-              <h1 className="text-lg font-bold text-slate-900 leading-tight">Autostore Admin</h1>
-              <p className="text-xs text-slate-500">Real-time parts request dashboard</p>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2.5">
+                <h1 className="text-lg font-bold text-slate-900 leading-tight truncate">
+                  Autostore Admin
+                </h1>
+                <Badge
+                  variant="outline"
+                  className="hidden sm:inline-flex border-emerald-400/60 bg-emerald-50 text-emerald-700 text-[11px] font-medium px-2 py-0.5"
+                >
+                  LIVE
+                </Badge>
+              </div>
+              <p className="text-xs text-slate-500 truncate">Real-time parts request dashboard</p>
             </div>
-                        
-            <Badge
-              variant="outline"
-              className="ml-3 border-emerald-400 bg-emerald-50 text-emerald-700"
-            >
-              LIVE MODE
-            </Badge>
-
           </div>
 
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSoundOn((s) => !s)}
-              title={soundOn ? 'Mute notifications' : 'Unmute notifications'}
-            >
-              {soundOn ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4 text-slate-400" />}
-            </Button>
-            {/* {!isFirebaseConfigured && (
-              <Button variant="outline" size="sm" onClick={addDemoRequest}>
-                <Plus className="h-4 w-4 mr-1" /> Simulate request
-              </Button>
-            )} */}
-            <Button variant="outline" size="sm" onClick={() => setPwOpen(true)}>
-              <KeyRound className="h-4 w-4 mr-1" /> Change password
-            </Button>
-            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md bg-slate-100">
-              <div className="h-7 w-7 rounded-full bg-gradient-to-br from-orange-500 to-amber-600 text-white flex items-center justify-center text-xs font-semibold">
-                {(user?.email || 'A').charAt(0).toUpperCase()}
+          {/* Right: User + Actions */}
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            <div className="hidden lg:flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-slate-100/80 border border-slate-200/60">
+              <div className="h-7 w-7 rounded-full bg-gradient-to-br from-orange-500 to-amber-600 text-white flex items-center justify-center text-xs font-semibold shadow-sm">
+                {(user?.email || "A").charAt(0).toUpperCase()}
               </div>
-              <span className="text-sm text-slate-700">{user?.email}</span>
+              <span className="text-sm text-slate-700 max-w-[160px] truncate">
+                {user?.email}
+              </span>
             </div>
+
             <Button
               variant="outline"
               size="sm"
               onClick={onOpenParts}
+              className="hidden sm:inline-flex"
             >
               <Package className="mr-2 h-4 w-4" />
               My Parts
             </Button>
+
             <Button
               variant="outline"
               size="sm"
               onClick={onOpenProfile}
+              className="hidden sm:inline-flex"
             >
               <UserRound className="mr-2 h-4 w-4" />
               Profile
             </Button>
-            <Button variant="ghost" size="sm" onClick={onLogout}>
-              <LogOut className="h-4 w-4 mr-1" /> Logout
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onLogout}
+              className="text-slate-600 hover:text-slate-900"
+            >
+              <LogOut className="h-4 w-4 sm:mr-1.5" />
+              <span className="hidden sm:inline">Logout</span>
             </Button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-6">
-
-
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
         {/* Stats */}
-        <div className="grid grid-cols-1 gap-4 mb-6 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
           <StatCard
             label="Pending"
             value={stats.pending}
             icon={Clock}
             color="amber"
           />
-
           <StatCard
             label="In Progress"
             value={stats.in_progress}
             icon={Truck}
             color="blue"
           />
-
           <StatCard
             label="Fulfilled"
             value={stats.fulfilled}
             icon={CheckCircle2}
             color="emerald"
           />
-
           <StatCard
             label="Rejected"
             value={stats.rejected}
@@ -978,81 +1411,265 @@ function Dashboard({ user, onLogout, onOpenProfile,  onOpenParts, }) {
           />
         </div>
 
-        {/* <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6"> */}
-          {/* <StatCard label="Pending" value={stats.pending} icon={Clock} color="amber" />
-          <StatCard label="In Progress" value={stats.in_progress} icon={Truck} color="blue" />
-          <StatCard label="Fulfilled" value={stats.fulfilled} icon={CheckCircle2} color="emerald" />
-          <StatCard label="Rejected" value={stats.rejected} icon={XCircle} color="rose" /> */}
-
-          
-        {/* </div> */}
-
-        {/* Filters */}
-        <Card className="mb-4">
-          <CardContent className="p-4 flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
-            <Tabs value={filter} onValueChange={setFilter}>
-              <TabsList>
-                <TabsTrigger value="all">All ({requests.length})</TabsTrigger>
-                <TabsTrigger value="pending">Pending ({stats.pending})</TabsTrigger>
-                <TabsTrigger value="in_progress">In Progress ({stats.in_progress})</TabsTrigger>
-                <TabsTrigger value="fulfilled">Fulfilled ({stats.fulfilled})</TabsTrigger>
-                <TabsTrigger value="rejected">Rejected ({stats.rejected})</TabsTrigger>
-              </TabsList>
-            </Tabs>
-            <div className="relative w-full md:w-72">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
-              <Input
-                placeholder="Search part, vehicle, requester..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-8"
-              />
+        {/* Filters + Date Range */}
+        <Card className="border-slate-200/80 shadow-sm">
+          <CardContent className="p-4 space-y-4">
+            {/* Status Tabs */}
+            <div className="overflow-x-auto -mx-1 px-1">
+              <Tabs value={filter} onValueChange={setFilter}>
+                <TabsList className="w-full sm:w-auto justify-start h-auto flex-wrap gap-1 bg-slate-100/80 p-1">
+                  <TabsTrigger value="all" className="text-xs sm:text-sm">
+                    All ({requests.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="pending" className="text-xs sm:text-sm">
+                    Pending ({stats.pending})
+                  </TabsTrigger>
+                  <TabsTrigger value="in_progress" className="text-xs sm:text-sm">
+                    In Progress ({stats.in_progress})
+                  </TabsTrigger>
+                  <TabsTrigger value="fulfilled" className="text-xs sm:text-sm">
+                    Fulfilled ({stats.fulfilled})
+                  </TabsTrigger>
+                  <TabsTrigger value="rejected" className="text-xs sm:text-sm">
+                    Rejected ({stats.rejected})
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
             </div>
-          </CardContent>
-        </Card>
 
-        {/* Table */}
-        <Card>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-slate-50">
-                    <TableHead className="font-bold">Parts</TableHead>
-                    {/* <TableHead>Vehicle</TableHead> */}
-                    <TableHead className="font-bold">Qty</TableHead>
-                    <TableHead className="font-bold">Requested By</TableHead>
-                    {/* <TableHead>Bin</TableHead> */}
-                    {/* <TableHead>Picker</TableHead> */}
-                    <TableHead className="font-bold text-left">Status</TableHead>
-                    <TableHead className="font-bold">Date</TableHead>
-                    <TableHead className="font-bold text-center">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={9} className="text-center py-12 text-slate-400">
-                        <Package className="h-10 w-10 mx-auto mb-2 opacity-40" />
-                        No requests {filter !== 'all' ? `in ${filter}` : 'yet'}
-                      </TableCell>
-                    </TableRow>
-                  )}                  
-                  {filtered.map((r) => (
-                    <RequestRow
-                      key={r.id}
-                      r={r}
-                      onView={(request) => setViewRequest(request)}
-                      onUpdate={(request) => setEditingRequest(request)}
+            {/* Date Filters */}
+            <div className="flex flex-col sm:flex-row sm:items-end gap-3 pt-1 border-t border-slate-100">
+              <div className="flex flex-col sm:flex-row gap-3 flex-1">
+                {/* Start Date */}
+                <div className="flex flex-col gap-1.5 w-full sm:w-auto">
+                  <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                    Start Date
+                  </label>
+                  <div className="relative">
+                    <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                    <Input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="pl-10 w-full sm:w-[170px] h-9"
+                      aria-label="Start date"
                     />
-                  ))}
-                </TableBody>
-              </Table>
+                  </div>
+                </div>
+
+                {/* End Date */}
+                <div className="flex flex-col gap-1.5 w-full sm:w-auto">
+                  <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                    End Date
+                  </label>
+                  <div className="relative">
+                    <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                    <Input
+                      type="date"
+                      value={endDate}
+                      min={startDate || undefined}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="pl-10 w-full sm:w-[170px] h-9"
+                      aria-label="End date"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Clear Dates */}
+              {(startDate || endDate) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setStartDate("");
+                    setEndDate("");
+                  }}
+                  className="h-9 whitespace-nowrap self-start sm:self-auto"
+                >
+                  Clear Dates
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
+
+        {/* Table Card */}
+        {/* Orders Table / Subscription Gate */}
+        <Card className="border-slate-200/80 shadow-sm overflow-hidden">
+          {subscriptionLoading ? (
+            <CardContent className="p-6 space-y-5 animate-pulse">
+              <div className="flex items-center justify-between">
+                <div className="h-5 w-40 rounded bg-slate-200" />
+                <div className="h-9 w-28 rounded-md bg-slate-200" />
+              </div>
+
+              <div className="space-y-3">
+                {[1, 2, 3, 4, 5].map((item) => (
+                  <div
+                    key={item}
+                    className="flex items-center gap-4 border-b border-slate-100 pb-3"
+                  >
+                    <div className="h-10 w-10 rounded-lg bg-slate-200" />
+
+                    <div className="flex-1 space-y-2">
+                      <div className="h-4 w-1/3 rounded bg-slate-200" />
+                      <div className="h-3 w-1/4 rounded bg-slate-100" />
+                    </div>
+
+                    <div className="h-7 w-20 rounded bg-slate-200" />
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          ) : !hasSubscription ? (
+            /* Subscription Required */
+            <CardContent className="py-16 px-6">
+              <div className="max-w-md mx-auto text-center space-y-5">
+
+                <div className="mx-auto h-16 w-16 rounded-2xl bg-orange-50 flex items-center justify-center">
+                  <Lock className="h-8 w-8 text-orange-500" />
+                </div>
+
+                <div className="space-y-2">
+                  <h2 className="text-xl font-bold text-slate-900">
+                    Subscription Required
+                  </h2>
+
+                  <p className="text-sm text-slate-500 leading-relaxed">
+                    Your subscription is currently inactive.
+                    Subscribe to access your parts orders and manage
+                    incoming customer requests.
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-orange-100 bg-orange-50/60 p-4">
+                  <p className="text-sm font-medium text-orange-800">
+                    Your orders will become available once your subscription is active. {"\n"} Contat us to activate your subscription.
+                  </p>
+                </div>
+
+                {/* Connect this button to your subscription page */}
+                
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <Button
+                      className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                      onClick={() =>
+                        window.open(
+                          "https://wa.me/18763177594?text=" +
+                            encodeURIComponent(
+                              "Hello, I am interested in subscribing to the Autostore supplier portal. Please provide me with the subscription details."
+                            ),
+                          "_blank"
+                        )
+                      }
+                    >
+                      <MessageCircle className="h-4 w-4 mr-2" />
+                      WhatsApp Us
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      className="flex-1 border-orange-500 text-orange-600 hover:bg-orange-50"
+                      onClick={() =>
+                        window.location.href =
+                          "mailto:support@soflaunch.com?subject=" +
+                          encodeURIComponent("Autostore Supplier Subscription") +
+                          "&body=" +
+                          encodeURIComponent(
+                            "Hello,\n\nI am interested in subscribing to the Autostore supplier portal. Please provide me with the subscription details.\n\nThank you."
+                          )
+                      }
+                    >
+                      <Mail className="h-4 w-4 mr-2" />
+                      Email Us
+                    </Button>
+                  </div>
+
+
+              </div>
+            </CardContent>
+          ) : (
+            /* Normal Orders Table */
+            <CardContent className="p-0">
+
+              {/* Search bar */}
+              <div className="px-4 pt-4 pb-3 border-b border-slate-100 bg-white">
+                <div className="relative max-w-md">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+
+                  <Input
+                    placeholder="Search part, vehicle, requester..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="pl-9 h-9 bg-slate-50 border-slate-200 focus-visible:ring-orange-500/30"
+                  />
+                </div>
+              </div>
+
+              {/* Table */}
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-slate-50/80 hover:bg-slate-50/80">
+                      <TableHead className="font-semibold text-slate-700 pl-4">
+                        Parts
+                      </TableHead>
+                      <TableHead className="font-semibold text-slate-700 w-[80px]">
+                        Qty
+                      </TableHead>
+                      <TableHead className="font-semibold text-slate-700">
+                        Requested By
+                      </TableHead>
+                      <TableHead className="font-semibold text-slate-700">
+                        Status
+                      </TableHead>
+                      <TableHead className="font-semibold text-slate-700">
+                        Date
+                      </TableHead>
+                      <TableHead className="font-semibold text-slate-700 text-center pr-4">
+                        Action
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+
+                  <TableBody>
+                    {filtered.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="h-48 text-center">
+                          <div className="flex flex-col items-center justify-center gap-2 text-slate-400">
+                            <Package className="h-10 w-10 opacity-40" />
+
+                            <p className="text-sm font-medium text-slate-500">
+                              No requests yet
+                            </p>
+
+                            <p className="text-xs text-slate-400">
+                              Try adjusting filters or search terms
+                            </p>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filtered.map((r) => (
+                        <RequestRow
+                          key={r.id}
+                          r={r}
+                          onView={(request) => setViewRequest(request)}
+                          onUpdate={(request) => setEditingRequest(request)}
+                        />
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          )}
+        </Card>
+       
       </main>
-      
+
+      {/* Dialogs */}
       {viewRequest && (
         <RequestDetailsDialog
           request={viewRequest}
@@ -1073,7 +1690,6 @@ function Dashboard({ user, onLogout, onOpenProfile,  onOpenParts, }) {
           onSave={updateRequest}
         />
       )}
-
     </div>
   );
 }

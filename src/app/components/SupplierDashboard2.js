@@ -445,7 +445,8 @@ export default function SupplierDashboard({
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 shadow-sm">
-              <Boxes className="h-6 w-6 text-white" />
+              {/* <Boxes className="h-6 w-6 text-white" /> */}
+              <img src="/logo.png" className="h-12 w-12" />
             </div>
 
             <div>
@@ -467,7 +468,8 @@ export default function SupplierDashboard({
               onClick={() => setActivePage("overview")}
               className={activePage === "overview" ? "bg-slate-900" : ""}
             >
-              <Boxes className="mr-2 h-4 w-4" />
+              {/* <Boxes className="mr-2 h-4 w-4" /> */}
+              <img src="/logo.png" className="h-6 w-6" />
               Overview
             </Button>
 
@@ -958,7 +960,7 @@ export default function SupplierDashboard({
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <CardTitle className="flex items-center gap-2">
-                        <Boxes className="h-5 w-5 text-orange-500" />
+                        <img src="/logo.png" className="h-12 w-12" />
                         Incoming Parts Requests
                       </CardTitle>
 
@@ -987,7 +989,8 @@ export default function SupplierDashboard({
                     </div>
                   ) : orders.length === 0 ? (
                     <div className="rounded-xl border border-dashed p-8 text-center">
-                      <Boxes className="mx-auto mb-3 h-10 w-10 text-slate-300" />
+                      {/* <Boxes className="mx-auto mb-3 h-10 w-10 text-slate-300" /> */}
+                      <img src="/logo.png" className="h-12 w-12" />
 
                       <h3 className="font-semibold text-slate-800">
                         No parts requests yet

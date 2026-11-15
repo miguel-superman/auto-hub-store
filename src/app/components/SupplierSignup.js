@@ -108,7 +108,9 @@ export default function SupplierSignup({ onBack, onRegistered }) {
         role: "supplier",
         status: "pending",
         isVerified: false,
-
+        sub: false(),
+        subDate: null,
+        subRenewalDate: null,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };

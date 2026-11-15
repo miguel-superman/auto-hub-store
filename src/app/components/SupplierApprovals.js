@@ -9,6 +9,7 @@ import {
   doc,
   updateDoc,
   serverTimestamp,
+  Timestamp,
 } from "firebase/firestore";
 import { auth, db } from "../lib/firebase";
 import { toast } from "sonner";
@@ -69,6 +70,15 @@ export default function SupplierApprovals({ user, onLogout }) {
   const [processingId, setProcessingId] = useState(null);
   const [loadError, setLoadError] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState(null);
+
+  const [subscriptionData, setSubscriptionData] = useState({
+    sub: false,
+    subRenewalDate: "",
+  });
+
+  const [subscriptionLoading, setSubscriptionLoading] = useState(false);
+  const [subscriptionSaving, setSubscriptionSaving] = useState(false);
+  const [subscriptionUserExists, setSubscriptionUserExists] = useState(false);
 
   // Filters
   const [statusFilter, setStatusFilter] = useState("pending"); // pending | approved | rejected | all
@@ -154,7 +164,7 @@ export default function SupplierApprovals({ user, onLogout }) {
         status: decision,
         isVerified: decision === "approved",
         rejectionReason: decision === "rejected" ? rejectionReason : "",
-        reviewedBy: auth.currentUser.uid,
+        reviewedBy: auth.currentUser.id,
         reviewedAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
@@ -178,6 +188,94 @@ export default function SupplierApprovals({ user, onLogout }) {
     }
   };
 
+  useEffect(() => {
+    if (!selectedSupplier?.id) {
+      setSubscriptionData({
+        sub: false,
+        subRenewalDate: "",
+      });
+      setSubscriptionUserExists(false);
+      return;
+    }
+
+    setSubscriptionLoading(true);
+
+    const userRef = doc(db, "Suppliers", selectedSupplier.id);
+
+    const unsubscribe = onSnapshot(
+      userRef,
+      (snapshot) => {
+        if (snapshot.exists()) {
+          const userData = snapshot.data();
+
+          setSubscriptionUserExists(true);
+
+          setSubscriptionData({
+            sub: userData.sub === true,
+            subRenewalDate: formatDateForInput(
+              userData.subRenewalDate
+            ),
+          });
+        } else {
+          setSubscriptionUserExists(false);
+
+          setSubscriptionData({
+            sub: false,
+            subRenewalDate: "",
+          });
+        }
+
+        setSubscriptionLoading(false);
+      },
+      (error) => {
+        console.error("Subscription data listener failed:", error);
+
+        setSubscriptionUserExists(false);
+        setSubscriptionLoading(false);
+
+        toast.error("Unable to load supplier subscription details.");
+      }
+    );
+
+    return () => unsubscribe();
+  }, [selectedSupplier?.id]);
+
+  function formatDateForInput(value) {
+    if (!value) return "";
+
+    let date;
+
+    if (value instanceof Timestamp) {
+      date = value.toDate();
+    } else if (value instanceof Date) {
+      date = value;
+    } else if (typeof value === "number") {
+      // Support both Unix seconds and milliseconds.
+      date = new Date(
+        value < 100000000000 ? value * 1000 : value
+      );
+    } else if (typeof value === "string") {
+      date = new Date(value);
+    } else {
+      return "";
+    }
+
+    if (
+      Number.isNaN(date.getTime()) ||
+      date.getFullYear() < 1900 ||
+      date.getFullYear() > 9999
+    ) {
+      return "";
+    }
+
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+  }
+
+  
   const getStatusBadge = (status) => {
     switch (status) {
       case "approved":
@@ -198,6 +296,78 @@ export default function SupplierApprovals({ user, onLogout }) {
             Pending
           </Badge>
         );
+    }
+  };
+
+  const updateSupplierSubscription = async () => {
+    if (!selectedSupplier?.id || !subscriptionUserExists) {
+      toast.error("Supplier user document could not be found.");
+      return;
+    }
+
+    setSubscriptionSaving(true);
+
+    try {
+      let renewalDate = null;
+
+      if (subscriptionData.subRenewalDate) {
+        const dateValue = subscriptionData.subRenewalDate;
+
+        // Require a valid YYYY-MM-DD date.
+        const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateValue);
+
+        if (!match) {
+          toast.error("Please select a valid renewal date.");
+          return;
+        }
+
+        const year = Number(match[1]);
+        const month = Number(match[2]);
+        const day = Number(match[3]);
+
+        if (year < 1900 || year > 9999) {
+          toast.error("Please select a valid renewal year.");
+          return;
+        }
+
+        // Construct date using local calendar values.
+        const date = new Date(0);
+        date.setFullYear(year, month - 1, day);
+        date.setHours(12, 0, 0, 0);
+
+        if (
+          date.getFullYear() !== year ||
+          date.getMonth() !== month - 1 ||
+          date.getDate() !== day
+        ) {
+          toast.error("Please enter a valid renewal date.");
+          return;
+        }
+
+        renewalDate = Timestamp.fromDate(date);
+      }
+
+      await updateDoc(
+        doc(db, "Suppliers", selectedSupplier.id),
+        {
+          sub: subscriptionData.sub,
+          subRenewalDate: renewalDate,
+          updatedAt: serverTimestamp(),
+        }
+      );
+
+      toast.success(
+        `Subscription updated for ${selectedSupplier.businessName}.`
+      );
+
+    } catch (error) {
+      console.error("Subscription update failed:", error);
+
+      toast.error(
+        "Unable to update subscription. Check your admin permissions."
+      );
+    } finally {
+      setSubscriptionSaving(false);
     }
   };
 
@@ -430,6 +600,118 @@ export default function SupplierApprovals({ user, onLogout }) {
               </DialogHeader>
 
               <div className="mt-4 space-y-5">
+
+              {/* Subscription Management */}
+              <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-4 space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-100">
+                      Subscription Management
+                    </h3>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Manage this supplier's subscription access and renewal date.
+                    </p>
+                  </div>
+
+                  {!subscriptionLoading && subscriptionUserExists && (
+                    <Badge
+                      className={
+                        subscriptionData.sub
+                          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                          : "border-rose-500/30 bg-rose-500/10 text-rose-400"
+                      }
+                    >
+                      {subscriptionData.sub ? "Active" : "Inactive"}
+                    </Badge>
+                  )}
+                </div>
+
+                {subscriptionLoading ? (
+                  <div className="space-y-3 animate-pulse">
+                    <div className="h-10 rounded-lg bg-slate-800" />
+                    <div className="h-10 rounded-lg bg-slate-800" />
+                  </div>
+                ) : !subscriptionUserExists ? (
+                  <div className="rounded-lg border border-rose-900/50 bg-rose-950/30 p-3">
+                    <p className="text-sm text-rose-300">
+                      Unable to find this supplier's Users document.
+                    </p>
+                    <p className="mt-1 text-xs text-rose-400/70">
+                      Subscription settings cannot be updated.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium uppercase tracking-wider text-slate-400">
+                        Subscription Status
+                      </label>
+
+                      <Select
+                        value={subscriptionData.sub ? "active" : "inactive"}
+                        onValueChange={(value) =>
+                          setSubscriptionData((prev) => ({
+                            ...prev,
+                            sub: value === "active",
+                          }))
+                        }
+                        disabled={subscriptionSaving}
+                      >
+                        <SelectTrigger className="border-slate-700 bg-slate-950 text-slate-200">
+                          <SelectValue placeholder="Select subscription status" />
+                        </SelectTrigger>
+
+                        <SelectContent className="border-slate-700 bg-slate-900 text-slate-100">
+                          <SelectItem value="active">Active</SelectItem>
+                          <SelectItem value="inactive">Inactive</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium uppercase tracking-wider text-slate-400">
+                        Subscription Renewal Date
+                      </label>
+
+                      <Input
+                        type="date"
+                        value={subscriptionData.subRenewalDate || ""}
+                        onChange={(e) =>
+                          setSubscriptionData((prev) => ({
+                            ...prev,
+                            subRenewalDate: e.target.value,
+                          }))
+                        }
+                        disabled={subscriptionSaving || subscriptionLoading}
+                        className="border-slate-700 bg-slate-950 text-slate-200
+                          [color-scheme:dark] cursor-pointer"
+                      />
+
+                      <p className="text-xs text-slate-500">
+                        Select the subscription renewal date using the calendar.
+                      </p>
+                    </div>
+
+                    <div className="flex justify-end pt-2">
+                      <Button
+                        onClick={updateSupplierSubscription}
+                        disabled={subscriptionSaving}
+                        className="bg-orange-600 text-white hover:bg-orange-500"
+                      >
+                        {subscriptionSaving ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          "Save Subscription"
+                        )}
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
+
                 <div className="grid gap-4 sm:grid-cols-2">
                   <DetailItem
                     icon={<User className="h-4 w-4" />}
